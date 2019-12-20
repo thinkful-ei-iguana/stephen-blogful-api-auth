@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
 
 function makeUsersArray() {
   return [
@@ -242,7 +243,7 @@ function seedUsers(db, users) {
 function seedArticlesTables(db, users, articles, comments=[]) {
   // use a transaction to group the queries and auto rollback on any failure
   return db.transaction(async trx => {
-    await seedUsers(trx, users).insert(users)
+    await seedUsers(trx, users)
     await trx.into('blogful_articles').insert(articles)
     // update the auto sequence to match the forced id values
     await trx.raw(
@@ -269,9 +270,12 @@ function seedMaliciousArticle(db, user, article) {
     )
 }
 
-function makeAuthHeader(user) {
-  const token = Buffer.from(`${user.user_name}:${user.password}`).toString('base64')
-  return `Basic ${token}`
+function makeAuthHeader(user, secret = process.env.JWT_SECRET) {
+  const token = jwt.sign({ user_id: user.id }, secret, {
+    subject: user.user_name,
+    algorithm: 'HS256',
+  })
+  return `Bearer ${token}`
 }
 
 module.exports = {
